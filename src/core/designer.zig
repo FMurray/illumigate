@@ -1,12 +1,15 @@
 const std = @import("std");
 const ray = @import("raylib");
 const raygui = @import("raygui");
+const geometry = @import("geometry.zig");
 
 pub const Designer = struct {
     window_width: i32,
     window_height: i32,
     camera: ray.Camera3D,
-    led_strips: std.ArrayList(LedStrip),
+    led_strips: std.ArrayList(geometry.LedStrip),
+    line_params: geometry.LineParams,
+    triangle_params: geometry.TriangleParams,
 
     pub fn init(allocator: std.mem.Allocator, width: i32, height: i32) !Designer {
         return Designer{
@@ -19,7 +22,9 @@ pub const Designer = struct {
                 .fovy = 45.0,
                 .projection = ray.CameraProjection.camera_perspective,
             },
-            .led_strips = try std.ArrayList(LedStrip).initCapacity(allocator, 10),
+            .led_strips = try std.ArrayList(geometry.LedStrip).initCapacity(allocator, 10),
+            .line_params = .{ .length = 5.0, .density = 20.0 },
+            .triangle_params = .{ .width = 5.0, .height = 5.0, .density = 60.0 },
         };
     }
 
@@ -58,44 +63,37 @@ pub const Designer = struct {
         if (raygui.guiButton(ray.Rectangle{ .x = 10, .y = 70, .width = 200, .height = 30 }, "Add LED Strip") == 1) {
             self.addLedStrip();
         }
+
+        if (raygui.guiButton(ray.Rectangle{ .x = 10, .y = 110, .width = 200, .height = 30 }, "Add Triangle") == 1) {
+            self.addTriangle();
+        }
+
+        const start_y: f32 = 150.0; // Starting Y position for the sliders
+        const spacing: f32 = 40.0; // Vertical spacing between sliders
+        const slider_width: f32 = 200.0; // Width of the slider
+        const slider_height: f32 = 20.0; // Height of the slider
+
+        // Line parameters
+        _ = raygui.guiSliderBar(ray.Rectangle{ .x = 10, .y = start_y + spacing * 0, .width = slider_width, .height = slider_height }, "Line Length", "", &self.line_params.length, 1.0, 10.0);
+        _ = raygui.guiSliderBar(ray.Rectangle{ .x = 10, .y = start_y + spacing * 1, .width = slider_width, .height = slider_height }, "Line Density", "", &self.line_params.density, 10.0, 100.0);
+
+        // Triangle parameters
+        _ = raygui.guiSliderBar(ray.Rectangle{ .x = 10, .y = start_y + spacing * 2, .width = slider_width, .height = slider_height }, "Triangle Width", "", &self.triangle_params.width, 1.0, 10.0);
+        _ = raygui.guiSliderBar(ray.Rectangle{ .x = 10, .y = start_y + spacing * 3, .width = slider_width, .height = slider_height }, "Triangle Height", "", &self.triangle_params.height, 1.0, 10.0);
+        _ = raygui.guiSliderBar(ray.Rectangle{ .x = 10, .y = start_y + spacing * 4, .width = slider_width, .height = slider_height }, "Triangle Density", "", &self.triangle_params.density, 10.0, 100.0);
     }
 
     fn addLedStrip(self: *Designer) void {
-        const new_strip = LedStrip.init(ray.Vector3{ .x = 0, .y = 0, .z = 0 }, ray.Vector3{ .x = 5, .y = 0, .z = 0 }, 20);
+        const new_strip = geometry.LedStrip.init(ray.Vector3{ .x = 0, .y = 0, .z = 0 }, ray.Vector3{ .x = self.line_params.length, .y = 0, .z = 0 }, self.line_params);
         self.led_strips.append(new_strip) catch |err| {
             std.debug.print("Failed to add LED strip: {}\n", .{err});
         };
     }
-};
 
-const LedStrip = struct {
-    start: ray.Vector3,
-    end: ray.Vector3,
-    num_leds: usize,
-
-    pub fn init(start: ray.Vector3, end: ray.Vector3, num_leds: usize) LedStrip {
-        return LedStrip{
-            .start = start,
-            .end = end,
-            .num_leds = num_leds,
+    fn addTriangle(self: *Designer) void {
+        const new_triangle = geometry.LedStrip.initTriangle(ray.Vector3{ .x = 0, .y = 0, .z = 0 }, ray.Vector3{ .x = self.triangle_params.width, .y = 0, .z = 0 }, ray.Vector3{ .x = self.triangle_params.width / 2, .y = self.triangle_params.height, .z = 0 }, self.triangle_params);
+        self.led_strips.append(new_triangle) catch |err| {
+            std.debug.print("Failed to add LED triangle: {}\n", .{err});
         };
-    }
-
-    pub fn draw(self: LedStrip) void {
-        ray.drawLine3D(self.start, self.end, ray.Color.red);
-
-        const step_x = (self.end.x - self.start.x) / @as(f32, @floatFromInt(self.num_leds));
-        const step_y = (self.end.y - self.start.y) / @as(f32, @floatFromInt(self.num_leds));
-        const step_z = (self.end.z - self.start.z) / @as(f32, @floatFromInt(self.num_leds));
-
-        var i: usize = 0;
-        while (i < self.num_leds) : (i += 1) {
-            const led_pos = ray.Vector3{
-                .x = self.start.x + step_x * @as(f32, @floatFromInt(i)),
-                .y = self.start.y + step_y * @as(f32, @floatFromInt(i)),
-                .z = self.start.z + step_z * @as(f32, @floatFromInt(i)),
-            };
-            ray.drawSphere(led_pos, 0.1, ray.Color.red);
-        }
     }
 };
