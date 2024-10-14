@@ -19,17 +19,17 @@ pub fn main() !void {
 
     defer _ = gpa.deinit();
 
-    // Load geometry
-    const geometry = try storage.loadGeometry(allocator, "new_geometry.json");
-    defer {
-        for (geometry.sections) |section| {
-            allocator.free(section.name);
-            allocator.free(section.type);
-            allocator.free(section.points);
-        }
-        allocator.free(geometry.points);
-        allocator.free(geometry.sections);
-    }
+    // // Load geometry
+    // const geometry = try storage.loadGeometry(allocator, "new_geometry.json");
+    // defer {
+    //     for (geometry.sections) |section| {
+    //         allocator.free(section.name);
+    //         allocator.free(section.type);
+    //         allocator.free(section.points);
+    //     }
+    //     allocator.free(geometry.points);
+    //     allocator.free(geometry.sections);
+    // }
 
     // Use the loaded geometry...
 

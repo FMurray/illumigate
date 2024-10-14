@@ -11,60 +11,47 @@ pub const Point = struct {
 };
 
 pub const Section = struct {
-    name: []const u8,
-    type: []const u8,
-    points: []const u32,
+    name: []u8,
+    type: []u8,
+    points: []u32,
 };
 
 pub const GeometryDefinition = struct {
-    points: []const Point,
-    sections: []const Section,
+    points: []Point,
+    sections: []Section,
 };
 
 pub fn loadGeometry(allocator: std.mem.Allocator, file_path: []const u8) !GeometryDefinition {
+    // Read the entire file content
     const file = try std.fs.cwd().openFile(file_path, .{});
     defer file.close();
 
-    const file_size = try file.getEndPos();
-    const buffer = try allocator.alloc(u8, file_size);
-    defer allocator.free(buffer);
+    const content = try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+    defer allocator.free(content);
 
-    _ = try file.readAll(buffer);
+    // Parse the JSON content
+    var parsed = try std.json.parseFromSlice(GeometryDefinition, allocator, content, .{
+        .ignore_unknown_fields = true,
+        .allocate = .alloc_always,
+    });
+    defer parsed.deinit();
 
-    var parser = try json.parseFromSlice(GeometryDefinition, allocator, buffer, .{});
-    defer parser.deinit();
-
-    const root = parser.value;
-
-    var points = ArrayList(Point).init(allocator);
-    defer points.deinit();
-
-    for (root.points) |json_point| {
-        const point = Point{
-            .id = json_point.id,
-            .x = json_point.x,
-            .y = json_point.y,
-            .z = json_point.z,
-        };
-        try points.append(point);
-    }
-
-    var sections = ArrayList(Section).init(allocator);
-    defer sections.deinit();
-
-    for (root.sections) |json_section| {
-        const section = Section{
-            .name = try allocator.dupe(u8, json_section.name),
-            .type = try allocator.dupe(u8, json_section.type),
-            .points = try allocator.dupe(u32, json_section.points),
-        };
-        try sections.append(section);
-    }
-
-    return GeometryDefinition{
-        .points = try points.toOwnedSlice(),
-        .sections = try sections.toOwnedSlice(),
+    // Create a new GeometryDefinition with owned memory
+    var result = GeometryDefinition{
+        .points = try allocator.dupe(Point, parsed.value.points),
+        .sections = try allocator.alloc(Section, parsed.value.sections.len),
     };
+
+    // Copy sections with owned memory
+    for (parsed.value.sections, 0..) |section, i| {
+        result.sections[i] = Section{
+            .name = try allocator.dupe(u8, section.name),
+            .type = try allocator.dupe(u8, section.type),
+            .points = try allocator.dupe(u32, section.points),
+        };
+    }
+
+    return result;
 }
 
 pub fn saveGeometry(geometry: GeometryDefinition, file_path: []const u8) !void {

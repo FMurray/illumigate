@@ -2,6 +2,7 @@ const std = @import("std");
 const ray = @import("raylib");
 const raygui = @import("raygui");
 const geometry = @import("geometry.zig");
+const storage = @import("storage.zig");
 
 pub const Designer = struct {
     window_width: i32,
@@ -10,9 +11,11 @@ pub const Designer = struct {
     led_strips: std.ArrayList(geometry.LedStrip),
     line_params: geometry.LineParams,
     triangle_params: geometry.TriangleParams,
+    allocator: std.mem.Allocator,
 
     pub fn init(allocator: std.mem.Allocator, width: i32, height: i32) !Designer {
-        return Designer{
+        std.debug.print("Initializing Designer\n", .{});
+        var designer = Designer{
             .window_width = width,
             .window_height = height,
             .camera = ray.Camera3D{
@@ -22,14 +25,36 @@ pub const Designer = struct {
                 .fovy = 45.0,
                 .projection = ray.CameraProjection.camera_perspective,
             },
-            .led_strips = try std.ArrayList(geometry.LedStrip).initCapacity(allocator, 10),
+            .led_strips = std.ArrayList(geometry.LedStrip).init(allocator),
             .line_params = .{ .length = 5.0, .density = 20.0 },
             .triangle_params = .{ .width = 5.0, .height = 5.0, .density = 60.0 },
+            .allocator = allocator,
         };
+
+        std.debug.print("Calling loadGeometryFromFile\n", .{});
+        try designer.loadGeometryFromFile("new_geometry.json");
+        std.debug.print("loadGeometryFromFile completed\n", .{});
+        return designer;
     }
 
     pub fn deinit(self: *Designer) void {
         self.led_strips.deinit();
+    }
+
+    pub fn loadGeometryFromFile(self: *Designer, file_path: []const u8) !void {
+        const loaded_geometry = try storage.loadGeometry(self.allocator, file_path);
+        defer {
+            for (loaded_geometry.sections) |section| {
+                self.allocator.free(section.name);
+                self.allocator.free(section.type);
+                self.allocator.free(section.points);
+            }
+            self.allocator.free(loaded_geometry.points);
+            self.allocator.free(loaded_geometry.sections);
+        }
+
+        // Convert loaded geometry to LedStrips
+        self.led_strips = try geometry.createLedStripsFromGeometry(self.allocator, loaded_geometry, self.triangle_params);
     }
 
     pub fn update(self: *Designer) void {
