@@ -1,0 +1,1 @@
+{"points":[{"id":1,"x":0e0,"y":0e0,"z":0e0},{"id":2,"x":1e0,"y":0e0,"z":0e0},{"id":3,"x":5e-1,"y":8.659999966621399e-1,"z":0e0}],"sections":[{"name":"Triangle1","type":"triangle","points":[1,2,3]}]}

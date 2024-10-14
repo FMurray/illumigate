@@ -38,6 +38,18 @@ Custom Scripts: Allow scripting of custom animations for advanced users.
 
 Data Export: The created animations will be saved as JSON files that contain the state of each LED at different timestamps or logic describing the animation behavior.
 
+Geometry Management:
+- Load and save geometry definitions from/to files
+- Define geometry points with global XYZ coordinates
+- Group geometry points into sections (e.g., triangles, squares)
+- Visualize loaded geometries in the 3D representation
+
+Data Format:
+- Use JSON for storing geometry definitions
+- Each geometry file will contain an array of points and their groupings
+
+Example geometry file structure:
+
 ### 2. Animation Controller (Microcontroller Code)
 
 The microcontrollers will run firmware capable of receiving animation data and controlling the LED strips accordingly.
